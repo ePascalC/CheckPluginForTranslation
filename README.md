@@ -1,7 +1,7 @@
 # CheckPluginForTranslation
 Check your plugin on wordpress.org making sure it's ready for translation.
 
-I came up with this script and run it on http://casier.eu/tools/checkplugin.php (this will change soon) to help myself in quickly checking why plugin authors say they have issues with:
+I came up with this script and run it on http://wp-info.org/tools/checkplugin.php to help myself in quickly checking why plugin authors say they have issues with:
 - A language pack is not created
 - My plugin is not ready for translation
 - I have only dev, no stable
