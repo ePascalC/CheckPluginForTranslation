@@ -14,7 +14,7 @@ Checks that will be performed:
 * Versions under /tags
 * Find the main php file
   * Find Text Domain
-  * function load_text_domain (if needed)
+  * function load_plugin_textdomain (if needed)
 * Existing language packs
 * Translation status
 * Revision log
