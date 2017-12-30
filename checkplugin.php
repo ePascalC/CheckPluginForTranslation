@@ -1,10 +1,17 @@
 <?php
 // HTML page start
-echo '<html><header><title>Check Plugin wp-info.org</title></header>';
-echo '<body>';
+?>
+<html><header><title>Check Plugin wp-info.org</title>
+<style>
+p.ind { padding-left: 1.5em; text-indent:-1.5em;}
+</style>
+</header>
+<body>
 
+<?php
 // Show version and point to information
-echo '<b>Check Plugin v0.2.1</b> - More info and help appreciated on <a href="https://github.com/ePascalC/CheckPluginForTranslation">GitHub</a><br>';
+echo '<b>Check Plugin v0.2.2</b> - More info and help appreciated on <a href="https://github.com/ePascalC/CheckPluginForTranslation">GitHub</a>,';
+echo ' also check out <a href="http://wp-info.org/pa-qrg/">http://wp-info.org/pa-qrg/</a><br>';
 echo '-----------------------------<br><br>';
 
 // Plugin slug
@@ -53,7 +60,13 @@ echo '<b>Readme file</b> is available on ' . $trunk_readme . '<br>';
 WordPress.org’s Plugin Directory works based on the information found in the field Stable Tag in the readme. When WordPress.org parses the readme.txt, the very first thing it does is to look at the readme.txt in the /trunk directory, where it reads the “Stable Tag” line. If the Stable Tag is missing, or is set to “trunk”, then the version of the plugin in /trunk is considered to be the stable version. If the Stable Tag is set to anything else, then it will go and look in /tags/ for the referenced version. So a Stable Tag of “1.2.3” will make it look for /tags/1.2.3/.
 */
 $text = checkplug_get_file_contents($trunk_readme);
-$lines = explode("\n", $text);
+$nbr_r = substr_count($text, "\r");
+$nbr_n = substr_count($text, "\n");
+if ( $nbr_r > $nbr_n ) {
+	$lines = explode("\r", $text);
+} else {
+	$lines = explode("\n", $text);
+}
 $stable_tag = 'notfound';
 $req_at_least = 'notfound';
 foreach ($lines as $line) {
@@ -94,6 +107,7 @@ if ($tags) {
 	// sort versions
 	usort($tags, 'version_compare');
 	
+	echo '<p class="ind">';
 	echo 'Tag folders found: ';
 	$first = true;
 	foreach ($tags as $tag) {
@@ -107,14 +121,16 @@ if ($tags) {
 	if ($stable_tag == 'trunk') {
 		echo ' (but none are used, only trunk)';
 	}
+	echo '</p>';
 } else {
 	if ($stable_tag == 'trunk') {
 		echo 'No folders found under /tag, but trunk is used so that is fine.';
 	} else {
 		echo '<span style="color: red;">' . 'No folders found under /tag' . '</span>';
 	}
+	echo '<br>';
 }
-echo '<br>';
+
 
 // Make sure the needed folder exists
 if ($stable_tag == 'trunk') {
@@ -153,7 +169,6 @@ if (!$php_files) {
 
 // Loop all php files found
 foreach ($php_files as $php_file) {
-	echo 'Checking <b>' . $php_file . '</b> in ' . $folder . '<br>';
 
 	// Read the (hopefully main) php file
 	$main_php = checkplug_get_file_contents($folder . $php_file);
@@ -170,19 +185,16 @@ foreach ($php_files as $php_file) {
 			$i = stripos($line, $t);
 			if ($i !== false) {
 				$plug_info['name'] = trim(substr($line, strlen($t) + $i));
-				echo ' - ' . $t . ' ' . $plug_info['name'] . '<br>';
 			}
 			$t = 'Version:';
 			$i = stripos($line, $t);
 			if ($i !== false) {
 				$plug_info['version'] = trim(substr($line, strlen($t) + $i));
-				echo ' - ' . $t . ' ' . $plug_info['version'] . '<br>';
 			}
 			$t = 'Text Domain:';
 			$i = stripos($line, $t);
 			if ($i !== false) {
 				$plug_info['text_domain'] = trim(substr($line, strlen($t) + $i));
-				echo ' - ' . $t . ' ' . $plug_info['text_domain'] . '<br>';
 			}
 		}
 		
@@ -192,13 +204,23 @@ foreach ($php_files as $php_file) {
 		$occurrence = $occurrence + 1;
 		$main_php_comment = checkplug_get_text_between('/*', '*/', $main_php, $occurrence);
 	}
-	if ( isset($plug_info['version']) )
+	if ( ( isset($plug_info['version']) ) && ( isset($plug_info['name']) ) )  {
+		echo 'File <b>' . $php_file . '</b> in ' . $folder . ' had the info needed:<br>';
+		echo ' - Plugin Name: ' . $plug_info['name'] . '<br>';
+		echo ' - Version: ' . $plug_info['version'] . '<br>';
+		echo ' - Text Domain: ' . $plug_info['text_domain'] . '<br>';
+		echo '<br>';
 		break;
+	}
 }
 
 // Check Text domain
+if ( !isset( $plug_info['text_domain'] ) ) {
+	echo '<span style="color: red;">' . 'Your plugin slug is ' . $plug_slug . ', but there seems no Text Domain: defined in ' . $main_php . '!' . '</span>';
+	die();
+}	
 if ($plug_info['text_domain'] != $plug_slug) {
-	echo '<span style="color: red;">' . 'Your plugin slug is ' . $plug_slug . ', but your Text Domain is ' . $plug_info['text_domain'] .'. Change your text_domain so it is equal to your slug!' . '</span>';
+	echo '<span style="color: red;">' . 'Your plugin slug is ' . $plug_slug . ', but your Text Domain is ' . $plug_info['text_domain'] .'. Change your Text Domain so it is equal to your slug!' . '</span>';
 	die();
 }
 
@@ -218,15 +240,37 @@ if ( version_compare($req_at_least, '4.6', '>=') ) {
   // MORE CODE NEEDED HERE TO CHECK
 
 // Language packs
-echo '<br>Language packs created:<br>';
+echo '<br>Language packs created:';
+$l_arr = array();
+$v_arr = array();
 $f = checkplug_get_file_contents('https://api.wordpress.org/translations/plugins/1.0/?slug=' . $plug_slug);
 if ($f) {
 	$a = json_decode($f);
 	foreach ($a->translations as $item) {
-		echo $item->updated . ', ' . $item->english_name . ' (' . $item->language . '), ' . $item->version . '<br>';
+		$d = new DateTime($item->updated);
+		$l_arr[$item->language]['updated'] = $d->format('Y-m-d');
+		$l_arr[$item->language]['english_name'] = $item->english_name;
+		$l_arr[$item->language]['language'] = $item->language;
+		$l_arr[$item->language]['version'] = $item->version;
+		if( !in_array($item->version, $v_arr ) ) {
+			$v_arr[] = $item->version;
+        }
 	}
 }
+usort($v_arr, 'version_compare'); //sort versions
+$v_arr = array_reverse($v_arr); // in reverse order
 
+foreach ( $v_arr as $ver ) {
+	echo '<p class="ind">';
+	echo 'v<b>' . $ver . '</b>: ';
+	foreach ( $l_arr as $l ) {
+		if ( $l['version'] == $ver ) {
+			echo $l['english_name'] . ' (<b>' . $l['language'] . '</b> - ' . $l['updated'] . '), ';
+		}
+	}
+	echo '</p>';
+}
+	
 // Translation status per locale
 echo '<br>Translation status (% per locale):<br>';
 echo '<span style="color: green;">(more code needed here to perform this check)</span><br>';
@@ -236,6 +280,15 @@ echo '<br>Latest Revision log entries:<br>';
 echo '<span style="color: green;">(more code needed here to perform this check)</span><br>';
   // MORE CODE NEEDED HERE TO CHECK
 
+
+// Summary table
+echo '<h3>Summary table</h3>';
+echo '<table border="1">';
+echo '<tr><th>Locale</th><th>Name</th><th colspan="2">Language pack</th></tr>';
+foreach ( $l_arr as $loc ) {
+	echo '<tr><td>' . $loc['language'] . '</td><td>' . $loc['english_name'] . '</td><td>' . $loc['version'] . '</td><td>' . $loc['updated'] . '</td></tr>';
+}
+echo '</table>';
 
 
 
