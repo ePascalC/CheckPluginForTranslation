@@ -1,11 +1,15 @@
 <?php
+// HTML page start
+echo '<html><header><title>Check Plugin wp-info.org</title></header>';
+echo '<body>';
+
 // Show version and point to information
-echo '<b>Check Plugin v0.2</b> - More info and help appreciated on <a href="https://github.com/ePascalC/CheckPluginForTranslation">GitHub</a><br>';
-echo '----------------<br><br>';
+echo '<b>Check Plugin v0.2.1</b> - More info and help appreciated on <a href="https://github.com/ePascalC/CheckPluginForTranslation">GitHub</a><br>';
+echo '-----------------------------<br><br>';
 
 // Plugin slug
 if ( $_GET['slug'] ) {
-	$plug_slug = $_GET['slug'];
+	$plug_slug = strtolower($_GET['slug']);
 	echo 'Plugin slug taken from url: ' . $plug_slug . '<br>';
 } else {
 	$plug_slug = 'bbp-toolkit';
@@ -17,17 +21,29 @@ if ( $_GET['slug'] ) {
 $base_dir = 'https://plugins.svn.wordpress.org/' . $plug_slug;
 $retcode = checkplug_get_retcode($base_dir . '/');
 if ($retcode != 200) {
-	echo '<span style="color: red;">' . 'Unable to find path ' . $base_dir . '/</span>' . '<br>';
+	echo '<span style="color: red;">' . 'Unable to find path ' . $base_dir . '/ (return code is ' . $retcode . ')</span>' . '<br>';
+	die();
+}
+echo 'Plugin <b>slug</b>: ' . $plug_slug . '<br>';
+
+// Get readme.txt correct upper/lower case spelling
+$text = checkplug_get_file_contents($base_dir .  '/trunk/');
+$lines = explode("\n", $text);
+foreach ($lines as $line) {
+	if (stripos($line, '<a href="readme.txt">') !== false) {
+		$readme = checkplug_get_text_between('<li><a href="', '"', $line);
+	}
+}
+if (!$readme) {
+	echo '<span style="color: red;">' . 'Unable to find the readme file in folder ' . $trunk_readme . '</span>' . '<br>';
 	die();
 }
 
-echo 'Plugin <b>slug</b>: ' . $plug_slug . '<br>';
-
-// Check if readme.txt exists in trunk
-$trunk_readme = $base_dir . '/trunk/readme.txt';
+// Check if readme.txt is accessible in trunk
+$trunk_readme = $base_dir . '/trunk/' . $readme;
 $retcode = checkplug_get_retcode($trunk_readme);
 if ($retcode != 200) {
-	echo '<span style="color: red;">' . 'Unable to read file from ' . $trunk_readme . '</span>' . '<br>';
+	echo '<span style="color: red;">' . 'Unable to read file from ' . $trunk_readme . ' (return code is ' . $retcode . ')</span>' . '<br>';
 	die();
 }
 echo '<b>Readme file</b> is available on ' . $trunk_readme . '<br>';
@@ -107,17 +123,17 @@ if ($stable_tag == 'trunk') {
 	$folder = $base_dir . '/tags/' . $stable_tag . '/';
 }
 if (checkplug_get_retcode($folder) != 200) {
-	echo '<span style="color: red;">' . 'Unable to find or access ' . $folder . '</span>';
+	echo '<span style="color: red;">' . 'Unable to find or access ' . $folder . ' (return code is ' . $retcode . ')</span>';
 	die();
 }
 
 // Get the files in that folder
 $files = checkplug_get_file_contents($folder);
 
-// Get first php file
+// Get all php files
 $lines = explode("\n", $files);
 
-$php_file = '';
+$php_files = array();
 foreach ($lines as $line) {
 	$line = trim($line);
 	if (strpos($line, '<li>') !== false) {
@@ -125,60 +141,64 @@ foreach ($lines as $line) {
 		if (!$f) {
 			$php_file = checkplug_get_text_between('<li><a href="', '.php"', $line);
 			if ($php_file) {
-				$php_file = $php_file . '.php';
-				break;
+				$php_files[] = $php_file . '.php';
 			}
 		}
 	}
 }
-
-if (!$php_file) {
-	echo '<span style="color: red;">' . 'Unable to find or access the php file in ' . $folder . '</span>';
+if (!$php_files) {
+	echo '<span style="color: red;">' . 'Unable to find or access php files in ' . $folder . '</span>';
 	die();
 }
-echo 'Checking <b>' . $php_file . '</b> in ' . $folder . '<br>';
 
-// Read the (hopefully main) php file
-$main_php = checkplug_get_file_contents($folder . $php_file);
+// Loop all php files found
+foreach ($php_files as $php_file) {
+	echo 'Checking <b>' . $php_file . '</b> in ' . $folder . '<br>';
 
-// Get the comment part, there might be more then 1 /* */
-$occurrence = 1;
-$main_php_comment = checkplug_get_text_between('/*', '*/', $main_php, $occurrence);
-while ($main_php_comment) {
-	$lines = explode("\n", $main_php_comment);
-	$plug_info = array();
-	foreach ($lines as $line) {
-		$line = trim($line);
-		$t = 'Plugin Name:';
-		$i = stripos($line, $t);
-		if ($i !== false) {
-			$plug_info['name'] = trim(substr($line, strlen($t) + $i));
-			echo ' - ' . $t . ' ' . $plug_info['name'] . '<br>';
-		}
-		$t = 'Version:';
-		$i = stripos($line, $t);
-		if ($i !== false) {
-			$plug_info['version'] = trim(substr($line, strlen($t) + $i));
-			echo ' - ' . $t . ' ' . $plug_info['version'] . '<br>';
-		}
-		$t = 'Text Domain:';
-		$i = stripos($line, $t);
-		if ($i !== false) {
-			$plug_info['text_domain'] = trim(substr($line, strlen($t) + $i));
-			echo ' - ' . $t . ' ' . $plug_info['text_domain'] . '<br>';
-		}
-	}
-	
-	// If we get the version, we have the correct comment block
-	if ( $plug_info['version'] ) break;
-	
-	$occurrence = $occurrence + 1;
+	// Read the (hopefully main) php file
+	$main_php = checkplug_get_file_contents($folder . $php_file);
+
+	// Get the comment part, there might be more then 1 /* */
+	$occurrence = 1;
 	$main_php_comment = checkplug_get_text_between('/*', '*/', $main_php, $occurrence);
+	while ($main_php_comment) {
+		$lines = explode("\n", $main_php_comment);
+		$plug_info = array();
+		foreach ($lines as $line) {
+			$line = trim($line);
+			$t = 'Plugin Name:';
+			$i = stripos($line, $t);
+			if ($i !== false) {
+				$plug_info['name'] = trim(substr($line, strlen($t) + $i));
+				echo ' - ' . $t . ' ' . $plug_info['name'] . '<br>';
+			}
+			$t = 'Version:';
+			$i = stripos($line, $t);
+			if ($i !== false) {
+				$plug_info['version'] = trim(substr($line, strlen($t) + $i));
+				echo ' - ' . $t . ' ' . $plug_info['version'] . '<br>';
+			}
+			$t = 'Text Domain:';
+			$i = stripos($line, $t);
+			if ($i !== false) {
+				$plug_info['text_domain'] = trim(substr($line, strlen($t) + $i));
+				echo ' - ' . $t . ' ' . $plug_info['text_domain'] . '<br>';
+			}
+		}
+		
+		// If we get the version, we have the correct comment block
+		if ( $plug_info['version'] ) break;
+		
+		$occurrence = $occurrence + 1;
+		$main_php_comment = checkplug_get_text_between('/*', '*/', $main_php, $occurrence);
+	}
+	if ( isset($plug_info['version']) )
+		break;
 }
 
 // Check Text domain
 if ($plug_info['text_domain'] != $plug_slug) {
-	echo '<span style="color: red;">' . 'Your plugin slug is ' . $plug_slug . ', but your Text Domain is ' . $plug_info['text_domain'] .'. Change your text_domain so it is equal to your slug' . '</span>';
+	echo '<span style="color: red;">' . 'Your plugin slug is ' . $plug_slug . ', but your Text Domain is ' . $plug_info['text_domain'] .'. Change your text_domain so it is equal to your slug!' . '</span>';
 	die();
 }
 
@@ -287,5 +307,9 @@ function checkplug_get_text_between($sstr, $estr, $haystack, $occurrence = 1) {
 	}
 	return $return;
 }
+
+// HTML page end
+echo '</body>';
+echo '</html>';
 
 ?>
