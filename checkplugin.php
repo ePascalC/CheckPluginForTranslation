@@ -1,4 +1,8 @@
 <?php
+// Show version and point to information
+echo '<b>Check Plugin v0.2</b> - More info and help appreciated on <a href="https://github.com/ePascalC/CheckPluginForTranslation">GitHub</a><br>';
+echo '----------------<br><br>';
+
 // Plugin slug
 if ( $_GET['slug'] ) {
 	$plug_slug = $_GET['slug'];
@@ -183,12 +187,12 @@ if ( ( $stable_tag == 'trunk' ) && ( in_array($plug_info['version'], $tags) ) ) 
 	echo '<span style="color: orange;">' . 'Trunk is being used, but there is also a folder under tags for version ' . $plug_info['version'] . '</span>';
 }	
 
-// load_text_domain checks
+// load_plugin_textdomain checks
 if ( version_compare($req_at_least, '4.6', '>=') ) {
-	echo 'Required version (' . $req_at_least . ') is at least 4.6 so no <b>load_text_domain</b> is needed.<br>';
+	echo 'Required version (' . $req_at_least . ') is at least 4.6 so no <b>load_plugin_textdomain</b> is needed.<br>';
 	echo '<span style="color: green;">(more code needed here to perform this check)</span><br>';
 } else {
-	echo 'Required version (' . $req_at_least . ') is below 4.6 so a <b>load_text_domain</b> is needed.<br>';
+	echo 'Required version (' . $req_at_least . ') is below 4.6 so a <b>load_plugin_textdomain</b> is needed.<br>';
 	echo '<span style="color: green;">(more code needed here to perform this check)</span><br>';
 }
   // MORE CODE NEEDED HERE TO CHECK
@@ -203,7 +207,7 @@ if ($f) {
 	}
 }
 
-
+// Translation status per locale
 echo '<br>Translation status (% per locale):<br>';
 echo '<span style="color: green;">(more code needed here to perform this check)</span><br>';
 
