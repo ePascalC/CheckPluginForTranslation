@@ -11,15 +11,20 @@ Checks that will be performed:
 * Plugin slug and base folder are reachable
 * Readme.txt in /trunk
   * Find the 'Required at least' and 'Stable Tag'
+  * _Make sure 'Tested up to' is not over 'Required at least' (still to be done)_
 * Versions under /tags
 * Find the main php file
   * Find Text Domain
-  * function load_plugin_textdomain (if needed)
+  * _function load_plugin_textdomain (if needed) (still to be done)_
 * Existing language packs
-* Translation status
+* _Translation status (still to be done)_
+* _Translation editors - PTE (still to be done)_
 * Revision log
-* Translation warning (as in #polyglots-warnings on slack)
-* Language pack status (as in #meta-language-packs on slack)
+* _Translation warning (as in #polyglots-warnings on slack) (still to be done)_
+* _Language pack status (as in #meta-language-packs on slack) (still to be done)_
+* _Waiting strings (still to be done)_
+* _List with useful links (still to be done)_
+* Summary table
 
 All help is appreaciated!
 
