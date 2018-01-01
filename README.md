@@ -18,7 +18,7 @@ Checks that will be performed:
   * _function load_plugin_textdomain (if needed) (still to be done)_
 * Existing language packs
 * _Translation status (still to be done)_
-* _Translation editors - PTE (still to be done)_
+* Translation editors - PTE
 * Revision log
 * _Translation warning (as in #polyglots-warnings on slack) (still to be done)_
 * _Language pack status (as in #meta-language-packs on slack) (still to be done)_
