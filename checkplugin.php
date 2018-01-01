@@ -10,7 +10,7 @@ p.ind { padding-left: 1.5em; text-indent:-1.5em;}
 
 <?php
 // Show version and point to information
-echo '<b>Check Plugin v0.2.2</b> - More info and help appreciated on <a href="https://github.com/ePascalC/CheckPluginForTranslation">GitHub</a>,';
+echo '<b>Check Plugin v0.2.3</b> - More info and help appreciated on <a href="https://github.com/ePascalC/CheckPluginForTranslation">GitHub</a>,';
 echo ' also check out <a href="http://wp-info.org/pa-qrg/">http://wp-info.org/pa-qrg/</a><br>';
 echo '-----------------------------<br><br>';
 
@@ -240,7 +240,7 @@ if ( version_compare($req_at_least, '4.6', '>=') ) {
   // MORE CODE NEEDED HERE TO CHECK
 
 // Language packs
-echo '<br>Language packs created:';
+echo '<h3>Language packs created:</h3>';
 $l_arr = array();
 $v_arr = array();
 $f = checkplug_get_file_contents('https://api.wordpress.org/translations/plugins/1.0/?slug=' . $plug_slug);
@@ -272,21 +272,74 @@ foreach ( $v_arr as $ver ) {
 }
 	
 // Translation status per locale
-echo '<br>Translation status (% per locale):<br>';
+echo '<h3>Translation status (% per locale)</h3>';
 echo '<span style="color: green;">(more code needed here to perform this check)</span><br>';
 
-// Latest Revision log from https://plugins.trac.wordpress.org/log/$plug_slug/
-echo '<br>Latest Revision log entries:<br>';
-echo '<span style="color: green;">(more code needed here to perform this check)</span><br>';
-  // MORE CODE NEEDED HERE TO CHECK
+// Translation editors from https://translate.wordpress.org/projects/wp-plugins/$plug_slug/contributors
+echo '<h3>Translation editors per locale</h3>';
+$url = 'https://translate.wordpress.org/projects/wp-plugins/' . $plug_slug . '/contributors';
+$f = checkplug_get_file_contents($url);
+if ($f) {
+	$doc = new DOMDocument;
+	@$doc->loadHTML($f);
+	$doc->preserveWhiteSpace = false;
+	$classname = 'has-editors';
+	$xpath = new DOMXPath($doc);
+	$rows = $xpath->query("//*[contains(@class, '" . $classname . "')]");
+	$nbr_rows = $rows->length;
+	if ($nbr_rows) {
+		echo '<table border="1">';
+		foreach ($rows as $row) {
+			//Get locale name and code
+			$classname = "locale-name";
+			$loc_name = trim($xpath->query(".//*[contains(@class, '" . $classname . "')]", $row)->item(0)->childNodes[0]->nodeValue);
+			$classname = "locale-code";
+			$loc_code = $xpath->query(".//*[contains(@class, '" . $classname . "')]", $row)->item(0)->nodeValue;
+			$loc_code = str_replace('#', '', $loc_code);
+			//Get usernames
+			$hrefs = $xpath->query('.//p[1]/a/@href', $row);
+			$ptes = '';
+			foreach ($hrefs as $href) {
+				$uname = checkplug_get_text_between('https://profiles.wordpress.org/', '/', $href->nodeValue);
+				if ($ptes) $ptes = $ptes . '; ';
+				$ptes = $ptes . '<a href="' . $href->nodeValue . '">' . $uname . '</a>';
+			}
+			echo '<tr><td>' . $loc_code . '</td><td>' . $ptes . '</td></tr>';
+			// add to central array
+			if ( !isset($l_arr[$loc_code]) ) {
+				$l_arr[$loc_code]['language'] = $loc_code;
+				$l_arr[$loc_code]['english_name'] = $loc_name;
+			}
+			$l_arr[$loc_code]['pte'] = $ptes;
+		}
+		echo '</table>';
+	}
+}
 
+// Latest Revision log
+echo '<h3>Latest Revision log entries</h3>';
+$url = 'https://plugins.trac.wordpress.org/log/' . $plug_slug . '/?limit=10&mode=stop_on_copy&format=rss';
+$rss_items = checkplug_fetch_feed( $url );
+if (!$rss_items) {
+	echo '<span style="color: orange;">' . 'Unable to get <a href="' . $url . '">latest revision log</a>, might be just a temporary issue.</span>';
+} else {	
+	echo '<table border="1">';
+	foreach ( $rss_items as $item ) {
+		$revlog_url = $item['link'];
+		$revlog_desc = $item['description'];
+		$revlog_date = date('Y-m-d H:i', $item['date']);
+		echo '<tr><td>' . $revlog_date . ' GMT</td><td>' . $revlog_desc . '</td></tr>';
+	}
+	echo '</table>';
+}
 
 // Summary table
 echo '<h3>Summary table</h3>';
 echo '<table border="1">';
-echo '<tr><th>Locale</th><th>Name</th><th colspan="2">Language pack</th></tr>';
+echo '<tr><th>Locale</th><th>Name</th><th colspan="2">Language pack</th><th>Editor (PTE)</th></tr>';
+ksort($l_arr);
 foreach ( $l_arr as $loc ) {
-	echo '<tr><td>' . $loc['language'] . '</td><td>' . $loc['english_name'] . '</td><td>' . $loc['version'] . '</td><td>' . $loc['updated'] . '</td></tr>';
+	echo '<tr><td>' . $loc['language'] . '</td><td>' . $loc['english_name'] . '</td><td>' . $loc['version'] . '</td><td>' . $loc['updated'] . '</td><td>' . $loc['pte'] . '</td></tr>';
 }
 echo '</table>';
 
@@ -358,6 +411,20 @@ function checkplug_get_text_between($sstr, $estr, $haystack, $occurrence = 1) {
 	} else {
 		$return = null;
 	}
+	return $return;
+}
+
+function checkplug_fetch_feed( $url ) {
+	$retcode = checkplug_get_retcode($url);
+	if ($retcode !== 200) return false;
+	
+	$content = checkplug_get_file_contents($url);
+	
+	$return = array();
+    $x = new SimpleXmlElement($content);
+    foreach($x->channel->item as $entry) {
+ 		$return[] = array( 'link' => (string) $entry->link, 'description' => (string) $entry->description, 'date' => strtotime($entry->pubDate) );
+    }
 	return $return;
 }
 
