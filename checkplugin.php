@@ -1,16 +1,17 @@
 <?php
 // HTML page start
 ?>
-<html><header><title>Check Plugin wp-info.org</title>
+<html><head><title>Check Plugin wp-info.org</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
 <style>
-p.ind { padding-left: 1.5em; text-indent:-1.5em;}
+	p.ind { padding-left: 1.5em; text-indent:-1.5em;}
 </style>
-</header>
+</head>
 <body>
 
 <?php
 // Show version and point to information
-echo '<b>Check Plugin v0.2.3</b> - More info and help appreciated on <a href="https://github.com/ePascalC/CheckPluginForTranslation">GitHub</a>,';
+echo '<b>Check Plugin v0.2.4</b> - More info and help appreciated on <a href="https://github.com/ePascalC/CheckPluginForTranslation">GitHub</a>,';
 echo ' also check out <a href="http://wp-info.org/pa-qrg/">http://wp-info.org/pa-qrg/</a><br>';
 echo '-----------------------------<br><br>';
 
@@ -126,7 +127,7 @@ if ($tags) {
 	if ($stable_tag == 'trunk') {
 		echo 'No folders found under /tag, but trunk is used so that is fine.';
 	} else {
-		echo '<span style="color: red;">' . 'No folders found under /tag' . '</span>';
+		echo '<span style="color: red;">' . 'No folders found under /tags although your Stable Tag is set to ' . $stable_tag . ' ! So create the <b>' . $stable_tag . '</b> folder under /tags OR change the Stable Tag to <b>trunk</b>' . '</span>';
 	}
 	echo '<br>';
 }
@@ -216,11 +217,11 @@ foreach ($php_files as $php_file) {
 
 // Check Text domain
 if ( !isset( $plug_info['text_domain'] ) ) {
-	echo '<span style="color: red;">' . 'Your plugin slug is ' . $plug_slug . ', but there seems no Text Domain: defined in ' . $main_php . '!' . '</span>';
+	echo '<span style="color: red;">' . 'Your plugin slug is <b>' . $plug_slug . '</b>, but there seems no Text Domain: defined in <b>' . $php_file . '</b>!' . '</span>';
 	die();
 }	
 if ($plug_info['text_domain'] != $plug_slug) {
-	echo '<span style="color: red;">' . 'Your plugin slug is ' . $plug_slug . ', but your Text Domain is ' . $plug_info['text_domain'] .'. Change your Text Domain so it is equal to your slug!' . '</span>';
+	echo '<span style="color: red;">' . 'Your plugin slug is <b>' . $plug_slug . '</b>, but your Text Domain is <b>' . $plug_info['text_domain'] .'</b>. Change your Text Domain in <b>' . $php_file . '</b> so it is equal to your slug!' . '</span>';
 	die();
 }
 
@@ -332,6 +333,10 @@ if (!$rss_items) {
 	}
 	echo '</table>';
 }
+
+// Link to meta-language-packs
+// e.g. ad-inserter : https://wordpress.slack.com/messages/meta-language-packs/search/ad-inserter%20in:%23meta-language-packs/
+
 
 // Summary table
 echo '<h3>Summary table</h3>';
