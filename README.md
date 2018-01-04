@@ -7,6 +7,8 @@ I came up with this script and run it on http://wp-info.org/tools/checkplugin.ph
 - I have only dev, no stable
 - Etc
 
+Examples on https://github.com/ePascalC/CheckPluginForTranslation/blob/master/v0.2.5%20examples.pdf
+
 Checks that will be performed:
 * Plugin slug and base folder are reachable
 * Readme.txt in /trunk
