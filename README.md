@@ -11,9 +11,9 @@ Examples on https://github.com/ePascalC/CheckPluginForTranslation/blob/master/v0
 
 Checks that will be performed:
 * Plugin slug and base folder are reachable
-* Readme.txt in /trunk
+* Readme in /trunk or /tags
   * Find the 'Required at least' and 'Stable Tag'
-  * _Make sure 'Tested up to' is not over 'Required at least' (still to be done)_
+  * Make sure 'Tested up to' is not over 'Required at least'
 * Versions under /tags
 * Find the main php file
   * Find Text Domain
@@ -25,7 +25,7 @@ Checks that will be performed:
 * _Translation warning (as in #polyglots-warnings on slack) (still to be done)_
 * _Language pack status (as in #meta-language-packs on slack) (still to be done)_
 * _Waiting strings (still to be done)_
-* _List with useful links (still to be done)_
+* List with useful links
 * Summary table
 
 All help is appreaciated!
