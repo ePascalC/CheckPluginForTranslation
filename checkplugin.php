@@ -11,56 +11,57 @@
 
 <?php
 // Show version and point to information
-echo '<b>Check Plugin v0.2.4</b> - More info and help appreciated on <a href="https://github.com/ePascalC/CheckPluginForTranslation">GitHub</a>,';
+echo '<b>Check Plugin v0.2.7</b> - More info and help appreciated on <a href="https://github.com/ePascalC/CheckPluginForTranslation">GitHub</a>,';
 echo ' also check out <a href="http://wp-info.org/pa-qrg/">http://wp-info.org/pa-qrg/</a><br>';
 echo '-----------------------------<br><br>';
 
+// Prepare
+$p = array(); // will hold all the plugin info
+
 // Plugin slug
 if ( $_GET['slug'] ) {
-	$plug_slug = strtolower($_GET['slug']);
-	echo 'Plugin slug taken from url: ' . $plug_slug . '<br>';
+	// Check the allowed characters for a plugin slug and use that!
+	$p['slug'] = strtolower( strip_tags( htmlspecialchars( $_GET['slug'] ) ) );
+	echo 'Plugin slug taken from url: ' . $p['slug'] . '<br>';
 } else {
-	$plug_slug = 'bbp-toolkit';
-	//$plug_slug = 'wpcasa-mail-alert';
-	echo '<span style="color: orange;">' . 'No slug found in this url (add ?slug=myplugin). Using ' . $plug_slug . ' as example.</span>' . '<br>';
+	echo '<form method="get">Plugin Slug: <input type="text" name="slug"><input type="submit"></form>';
+	$p['slug'] = 'bbpress';
+	checkplug_show_warning( 'Please enter a plugin slug and hit "Submit". Using ' . $p['slug'] . ' as example.<br>' );
 }	
 
 // Check base dir	
-$base_dir = 'https://plugins.svn.wordpress.org/' . $plug_slug;
-$retcode = checkplug_get_retcode($base_dir . '/');
+$p['svn_base_dir'] = 'https://plugins.svn.wordpress.org/' . $p['slug'];
+$retcode = checkplug_get_retcode($p['svn_base_dir'] . '/');
 if ($retcode != 200) {
-	echo '<span style="color: red;">' . 'Unable to find path ' . $base_dir . '/ (return code is ' . $retcode . ')</span>' . '<br>';
-	die();
+	checkplug_show_error( 'Unable to find path ' . $p['svn_base_dir'] . '/ (return code is ' . $retcode . ')' );
 }
-echo 'Plugin <b>slug</b>: ' . $plug_slug . '<br>';
+echo 'Plugin <b>slug</b>: ' . $p['slug'] . '<br>';
 
 // Get readme.txt correct upper/lower case spelling
-$text = checkplug_get_file_contents($base_dir .  '/trunk/');
+$text = checkplug_get_file_contents($p['svn_base_dir'] .  '/trunk/');
 $lines = explode("\n", $text);
 foreach ($lines as $line) {
 	if (stripos($line, '<a href="readme.txt">') !== false) {
-		$readme = checkplug_get_text_between('<li><a href="', '"', $line);
+		$p['fn_trunk_readme'] = checkplug_get_text_between('<li><a href="', '"', $line);
 	}
 }
-if (!$readme) {
-	echo '<span style="color: red;">' . 'Unable to find the readme file in folder ' . $trunk_readme . '</span>' . '<br>';
-	die();
+if (!$p['fn_trunk_readme']) {
+	checkplug_show_error( 'Unable to find the readme file in folder ' . $p['svn_base_dir'] . '/trunk/' );
 }
 
 // Check if readme.txt is accessible in trunk
-$trunk_readme = $base_dir . '/trunk/' . $readme;
-$retcode = checkplug_get_retcode($trunk_readme);
+$p['fp_trunk_readme'] = $p['svn_base_dir'] . '/trunk/' . $p['fn_trunk_readme'];
+$retcode = checkplug_get_retcode($p['fp_trunk_readme']);
 if ($retcode != 200) {
-	echo '<span style="color: red;">' . 'Unable to read file from ' . $trunk_readme . ' (return code is ' . $retcode . ')</span>' . '<br>';
-	die();
+	checkplug_show_error( 'Unable to read file ' . $p['fp_trunk_readme'] . ' (return code is ' . $retcode . ')' );
 }
-echo '<b>Readme file</b> is available on ' . $trunk_readme . '<br>';
+echo '<b>Readme file</b> is available on ' . $p['fp_trunk_readme'] . '<br>';
 
 // Get the file
 /*
 WordPress.org’s Plugin Directory works based on the information found in the field Stable Tag in the readme. When WordPress.org parses the readme.txt, the very first thing it does is to look at the readme.txt in the /trunk directory, where it reads the “Stable Tag” line. If the Stable Tag is missing, or is set to “trunk”, then the version of the plugin in /trunk is considered to be the stable version. If the Stable Tag is set to anything else, then it will go and look in /tags/ for the referenced version. So a Stable Tag of “1.2.3” will make it look for /tags/1.2.3/.
 */
-$text = checkplug_get_file_contents($trunk_readme);
+$text = checkplug_get_file_contents($p['fp_trunk_readme']);
 $nbr_r = substr_count($text, "\r");
 $nbr_n = substr_count($text, "\n");
 if ( $nbr_r > $nbr_n ) {
@@ -68,31 +69,35 @@ if ( $nbr_r > $nbr_n ) {
 } else {
 	$lines = explode("\n", $text);
 }
-$stable_tag = 'notfound';
-$req_at_least = 'notfound';
+$p['stable_tag'] = 'notfound';
+$p['req_at_least'] = 'notfound';
+$p['tested_up_to'] = 'notfound';
 foreach ($lines as $line) {
-	if (stripos($line, 'Requires at least:') !== false) {
-		echo ' - ' . $line . '<br>';
-		$req_at_least = trim(substr($line, strlen('Requires at least:')));
-	}
-
 	if (stripos($line, 'Stable Tag:') !== false) {
 		echo ' - ' . $line . '<br>';
-		$stable_tag = strtolower(trim(substr($line, strlen('Stable Tag:'))));
+		$p['stable_tag'] = strtolower(trim(substr($line, strlen('Stable Tag:'))));
+	}
+	if (stripos($line, 'Requires at least:') !== false) {
+		// Saving for later. If Stable Tag is NOT trunk, then the value will have to be taken from the readme in the tags folder
+		$p['req_at_least'] = trim(substr($line, strlen('Requires at least:')));
+	}
+	if (stripos($line, 'Tested up to:') !== false) {
+		// Saving for later. If Stable Tag is NOT trunk, then the value will have to be taken from the readme in the tags folder
+		$p['tested_up_to'] = strtolower(trim(substr($line, strlen('Tested up to:'))));
 	}
 }
 
 // Check the tags in the readme.txt trunk
-if ( $stable_tag == 'trunk' ) {
-	echo '<span style="color: orange;">' . 'Stable tag is set to trunk, is this what is expected?' . '</span>' . '<br>';
+if ( $p['stable_tag'] == 'trunk' ) {
+	checkplug_show_warning( 'Stable tag is set to trunk, is this what is expected?' );
 }
-if ( $stable_tag == 'notfound' ) {
-	echo '<span style="color: red;">' . 'Stable tag not found so defaulting to trunk, better define it!' . '</span>' . '<br>';
-	$stable_tag = 'trunk';
+if ( $p['stable_tag'] == 'notfound' ) {
+	checkplug_show_warning( 'Stable tag not found so defaulting to trunk, better define it!' );
+	$p['stable_tag'] = 'trunk';
 }
 
 // Get the tags if any
-$tags_folder = $base_dir . '/tags';
+$tags_folder = $p['svn_base_dir'] . '/tags';
 $tags_html = checkplug_get_file_contents($tags_folder);
 $lines = explode("\n", $tags_html);
 $tags = array();
@@ -119,40 +124,42 @@ if ($tags) {
 		}
 		echo $tag;
 	}
-	if ($stable_tag == 'trunk') {
+	if ($p['stable_tag'] == 'trunk') {
 		echo ' (but none are used, only trunk)';
 	}
 	echo '</p>';
 } else {
-	if ($stable_tag == 'trunk') {
+	if ($p['stable_tag'] == 'trunk') {
 		echo 'No folders found under /tag, but trunk is used so that is fine.';
 	} else {
-		echo '<span style="color: red;">' . 'No folders found under /tags although your Stable Tag is set to ' . $stable_tag . ' ! So create the <b>' . $stable_tag . '</b> folder under /tags OR change the Stable Tag to <b>trunk</b>' . '</span>';
+		checkplug_show_error( 'No folders found under /tags although your Stable Tag is set to ' . $p['stable_tag'] . ' ! So create the <b>' . $p['stable_tag'] . '</b> folder under /tags OR change the Stable Tag to <b>trunk</b>' );
 	}
 	echo '<br>';
 }
 
 
 // Make sure the needed folder exists
-if ($stable_tag == 'trunk') {
-	$folder = $base_dir . '/trunk/';
+if ($p['stable_tag'] == 'trunk') {
+	$folder = $p['svn_base_dir'] . '/trunk/';
 } else {
-	$folder = $base_dir . '/tags/' . $stable_tag . '/';
+	$folder = $p['svn_base_dir'] . '/tags/' . $p['stable_tag'] . '/';
 }
 if (checkplug_get_retcode($folder) != 200) {
-	echo '<span style="color: red;">' . 'Unable to find or access ' . $folder . ' (return code is ' . $retcode . ')</span>';
-	die();
+	checkplug_show_error( 'Unable to find or access ' . $folder . ' (return code is ' . $retcode . ')' );
 }
 
 // Get the files in that folder
 $files = checkplug_get_file_contents($folder);
 
-// Get all php files
+// Get all php files AND the readme file
 $lines = explode("\n", $files);
 
 $php_files = array();
 foreach ($lines as $line) {
 	$line = trim($line);
+	if (stripos($line, '<a href="readme.txt">') !== false) {
+		$p['fn_tags_readme'] = checkplug_get_text_between('<li><a href="', '"', $line);
+	}
 	if (strpos($line, '<li>') !== false) {
 		$f = checkplug_get_text_between('<li><a href="', '/"', $line);
 		if (!$f) {
@@ -164,87 +171,127 @@ foreach ($lines as $line) {
 	}
 }
 if (!$php_files) {
-	echo '<span style="color: red;">' . 'Unable to find or access php files in ' . $folder . '</span>';
-	die();
+	checkplug_show_error( 'Unable to find or access php files in ' . $folder );
 }
+
+// Get info from the readme file in the tags folder if not trunk
+/* If the Stable Tag is 1.2.3 and /tags/1.2.3/ exists, then nothing in trunk will be read any further for parsing by any part of the system. If you try to change the description of the plugin in /trunk/readme.txt, and Stable Tag isn’t trunk, then your changes won’t do anything on your plugin page. Everything comes from the readme.txt in the file being pointed to by the Stable Tag. */
+if ( $p['stable_tag'] != 'trunk' ) {
+	$p['fp_tags_readme'] = $folder . $p['fn_tags_readme'];
+	echo 'Checking file <b>' . $p['fp_tags_readme'] . '</b>...<br>';
+	$text = checkplug_get_file_contents($p['fp_tags_readme']);
+	$nbr_r = substr_count($text, "\r");
+	$nbr_n = substr_count($text, "\n");
+	if ( $nbr_r > $nbr_n ) {
+		$lines = explode("\r", $text);
+	} else {
+		$lines = explode("\n", $text);
+	}
+	$p['req_at_least'] = 'notfound';
+	$p['tested_up_to'] = 'notfound';
+	foreach ($lines as $line) {
+		if (stripos($line, 'Requires at least:') !== false) {
+			echo ' - ' . $line . '<br>';
+			$p['req_at_least'] = trim(substr($line, strlen('Requires at least:')));
+		}
+		if (stripos($line, 'Tested up to:') !== false) {
+			echo ' - ' . $line . '<br>';
+			$p['tested_up_to'] = strtolower(trim(substr($line, strlen('Tested up to:'))));
+		}
+	}
+}
+
+// Check Req_at_least
+if ( $p['req_at_least'] == 'notfound' ) {
+	checkplug_show_warning( 'No <b>Requires at least:</b> is set in the readme file (' . $p['fn_tags_readme'] . '). Considering 1.0 for further testing.<br>' );
+	$p['req_at_least'] = '1.0';
+} else {
+	// Compare Tested_up_to with Req_at_least
+	if ( version_compare($p['req_at_least'], $p['tested_up_to'], '>') ) {
+		checkplug_show_warning( 'Your <b>Requires at least:</b> is set to <b>' . $p['req_at_least'] . '</b>,' .
+			' but the plugin seems only <b>Tested up to: ' . $p['tested_up_to'] . '</b><br>' );
+	}
+}	
+echo '<br>';
 
 // Loop all php files found
 foreach ($php_files as $php_file) {
 
 	// Read the (hopefully main) php file
-	$main_php = checkplug_get_file_contents($folder . $php_file);
+	$p['fp_main_php'] = $folder . $php_file;
+	$main_php_content = checkplug_get_file_contents($p['fp_main_php']);
 
 	// Get the comment part, there might be more then 1 /* */
 	$occurrence = 1;
-	$main_php_comment = checkplug_get_text_between('/*', '*/', $main_php, $occurrence);
+	$main_php_comment = checkplug_get_text_between('/*', '*/', $main_php_content, $occurrence);
 	while ($main_php_comment) {
 		$lines = explode("\n", $main_php_comment);
-		$plug_info = array();
 		foreach ($lines as $line) {
 			$line = trim($line);
 			$t = 'Plugin Name:';
 			$i = stripos($line, $t);
 			if ($i !== false) {
-				$plug_info['name'] = trim(substr($line, strlen($t) + $i));
+				$p['name'] = trim(substr($line, strlen($t) + $i));
 			}
 			$t = 'Version:';
 			$i = stripos($line, $t);
 			if ($i !== false) {
-				$plug_info['version'] = trim(substr($line, strlen($t) + $i));
+				$p['version'] = trim(substr($line, strlen($t) + $i));
 			}
 			$t = 'Text Domain:';
 			$i = stripos($line, $t);
 			if ($i !== false) {
-				$plug_info['text_domain'] = trim(substr($line, strlen($t) + $i));
+				$p['text_domain'] = trim(substr($line, strlen($t) + $i));
 			}
 		}
 		
 		// If we get the version, we have the correct comment block
-		if ( $plug_info['version'] ) break;
+		if ( $p['version'] ) break;
 		
 		$occurrence = $occurrence + 1;
-		$main_php_comment = checkplug_get_text_between('/*', '*/', $main_php, $occurrence);
+		$main_php_comment = checkplug_get_text_between('/*', '*/', $main_php_content, $occurrence);
 	}
-	if ( ( isset($plug_info['version']) ) && ( isset($plug_info['name']) ) )  {
+	if ( ( isset($p['version']) ) && ( isset($p['name']) ) )  {
 		echo 'File <b>' . $php_file . '</b> in ' . $folder . ' had the info needed:<br>';
-		echo ' - Plugin Name: ' . $plug_info['name'] . '<br>';
-		echo ' - Version: ' . $plug_info['version'] . '<br>';
-		echo ' - Text Domain: ' . $plug_info['text_domain'] . '<br>';
+		echo ' - Plugin Name: ' . $p['name'] . '<br>';
+		echo ' - Version: ' . $p['version'] . '<br>';
+		echo ' - Text Domain: ' . $p['text_domain'] . '<br>';
 		echo '<br>';
 		break;
 	}
 }
 
 // Check Text domain
-if ( !isset( $plug_info['text_domain'] ) ) {
-	echo '<span style="color: red;">' . 'Your plugin slug is <b>' . $plug_slug . '</b>, but there seems no Text Domain: defined in <b>' . $php_file . '</b>!' . '</span>';
-	die();
+if ( !isset( $p['text_domain'] ) ) {
+	checkplug_show_error( 'Your plugin slug is <b>' . $p['slug'] . '</b>, but there seems no Text Domain: defined in <b>' . $php_file . '</b>!' );
 }	
-if ($plug_info['text_domain'] != $plug_slug) {
-	echo '<span style="color: red;">' . 'Your plugin slug is <b>' . $plug_slug . '</b>, but your Text Domain is <b>' . $plug_info['text_domain'] .'</b>. Change your Text Domain in <b>' . $php_file . '</b> so it is equal to your slug!' . '</span>';
-	die();
+if ($p['text_domain'] != $p['slug']) {
+	checkplug_show_error( 'Your plugin slug is <b>' . $p['slug'] . '</b>, but your Text Domain is <b>' . $p['text_domain'] .'</b>. Change your Text Domain in <b>' . $php_file . '</b> so it is equal to your slug!' );
 }
 
 // If trunk, check if version has existing tag
-if ( ( $stable_tag == 'trunk' ) && ( in_array($plug_info['version'], $tags) ) ) {
-	echo '<span style="color: orange;">' . 'Trunk is being used, but there is also a folder under tags for version ' . $plug_info['version'] . '</span>';
+if ( ( $p['stable_tag'] == 'trunk' ) && ( in_array($p['version'], $tags) ) ) {
+	checkplug_show_warning( 'Trunk is being used, but there is also a folder under tags for version ' . $p['version'] );
 }	
 
 // load_plugin_textdomain checks
-if ( version_compare($req_at_least, '4.6', '>=') ) {
-	echo 'Required version (' . $req_at_least . ') is at least 4.6 so no <b>load_plugin_textdomain</b> is needed.<br>';
+if ( version_compare($p['req_at_least'], '4.6', '>=') ) {
+	echo 'Required version (' . $p['req_at_least'] . ') is at least 4.6 so no <b>load_plugin_textdomain</b> is needed.<br>';
 	echo '<span style="color: green;">(more code needed here to perform this check)</span><br>';
 } else {
-	echo 'Required version (' . $req_at_least . ') is below 4.6 so a <b>load_plugin_textdomain</b> is needed.<br>';
+	echo 'Required version (' . $p['req_at_least'] . ') is below 4.6 so a <b>load_plugin_textdomain</b> is needed.<br>';
 	echo '<span style="color: green;">(more code needed here to perform this check)</span><br>';
 }
+	
   // MORE CODE NEEDED HERE TO CHECK
 
+  
+  
 // Language packs
 echo '<h3>Language packs created:</h3>';
 $l_arr = array();
 $v_arr = array();
-$f = checkplug_get_file_contents('https://api.wordpress.org/translations/plugins/1.0/?slug=' . $plug_slug);
+$f = checkplug_get_file_contents('https://api.wordpress.org/translations/plugins/1.0/?slug=' . $p['slug']);
 if ($f) {
 	$a = json_decode($f);
 	foreach ($a->translations as $item) {
@@ -276,9 +323,9 @@ foreach ( $v_arr as $ver ) {
 echo '<h3>Translation status (% per locale)</h3>';
 echo '<span style="color: green;">(more code needed here to perform this check)</span><br>';
 
-// Translation editors from https://translate.wordpress.org/projects/wp-plugins/$plug_slug/contributors
+// Translation editors from https://translate.wordpress.org/projects/wp-plugins/$p['slug']/contributors
 echo '<h3>Translation editors per locale</h3>';
-$url = 'https://translate.wordpress.org/projects/wp-plugins/' . $plug_slug . '/contributors';
+$url = 'https://translate.wordpress.org/projects/wp-plugins/' . $p['slug'] . '/contributors';
 $f = checkplug_get_file_contents($url);
 if ($f) {
 	$doc = new DOMDocument;
@@ -319,10 +366,10 @@ if ($f) {
 
 // Latest Revision log
 echo '<h3>Latest Revision log entries</h3>';
-$url = 'https://plugins.trac.wordpress.org/log/' . $plug_slug . '/?limit=10&mode=stop_on_copy&format=rss';
+$url = 'https://plugins.trac.wordpress.org/log/' . $p['slug'] . '/?limit=10&mode=stop_on_copy&format=rss';
 $rss_items = checkplug_fetch_feed( $url );
 if (!$rss_items) {
-	echo '<span style="color: orange;">' . 'Unable to get <a href="' . $url . '">latest revision log</a>, might be just a temporary issue.</span>';
+	echo '<span style="color: orange;">' . 'WARNING: Unable to get <a href="' . $url . '">latest revision log</a>, might be just a temporary issue.</span>';
 } else {	
 	echo '<table border="1">';
 	foreach ( $rss_items as $item ) {
@@ -334,9 +381,9 @@ if (!$rss_items) {
 	echo '</table>';
 }
 
-// Link to meta-language-packs
-// e.g. ad-inserter : https://wordpress.slack.com/messages/meta-language-packs/search/ad-inserter%20in:%23meta-language-packs/
 
+// Links
+checkplug_print_links();
 
 // Summary table
 echo '<h3>Summary table</h3>';
@@ -355,6 +402,39 @@ echo '</table>';
  * FUNCTIONS
  */
 
+function checkplug_show_error($text) {
+	echo '<span style="color: red;">ERROR: ' . $text . '</span><br>';
+	checkplug_print_links();
+	die();
+}
+
+function checkplug_show_warning($text) {
+	echo '<span style="color: orange;">WARNING: ' . $text . '</span><br>';
+}
+
+function checkplug_print_links() {
+	global $p;
+
+	echo '<h3>Links</h3>';
+	echo '<table>';
+	if ($p['svn_base_dir']) echo sprintf('<tr><td>%s</td><td><a href="%s">%s</td></tr>', 'Base SVN folder', $p['svn_base_dir'], $p['svn_base_dir']);
+	if ($p['fp_trunk_readme']) echo sprintf('<tr><td>%s</td><td><a href="%s">%s</td></tr>', 'Trunk readme', $p['fp_trunk_readme'], $p['fp_trunk_readme']);
+	if ($p['fp_tags_readme']) echo sprintf('<tr><td>%s</td><td><a href="%s">%s</td></tr>', 'Tags readme', $p['fp_tags_readme'], $p['fp_tags_readme']);
+	if ($p['fp_main_php']) {
+		echo sprintf('<tr><td>%s</td><td><a href="%s">%s</td></tr>', 'Main php file', $p['fp_main_php'], $p['fp_main_php']);
+		$url = 'https://translate.wordpress.org/projects/wp-plugins/' . $p['slug'] . '/contributors';
+		echo sprintf('<tr><td>%s</td><td><a href="%s">%s</td></tr>', 'Translation Editors', $url, $url);
+		$url = 'https://plugins.trac.wordpress.org/log/' . $p['slug'] . '/?limit=10&mode=stop_on_copy&format=rss';
+		echo sprintf('<tr><td>%s</td><td><a href="%s">%s</td></tr>', 'Revision log', $url, $url);
+		$url = 'https://wordpress.slack.com/messages/meta-language-packs/search/in:%23meta-language-packs%20' . $p['slug'] . '/';
+		echo sprintf('<tr><td>%s</td><td><a href="%s">%s</td></tr>', '<a href="https://make.wordpress.org/chat/">Slack</a> #meta-language-packs', $url, $url);
+		$url = 'https://wordpress.slack.com/messages/meta-language-packs/search/in:%23polyglots-warnings%20' . $p['slug'] . '/';
+		echo sprintf('<tr><td>%s</td><td><a href="%s">%s</td></tr>', '<a href="https://make.wordpress.org/chat/">Slack</a> #polyglots-warnings', $url, $url);
+	}
+	echo '</table>';
+}
+
+ 
 function checkplug_get_file_contents($url) {
 	$ch = curl_init();
 	curl_setopt_array(
