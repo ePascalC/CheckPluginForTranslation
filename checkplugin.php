@@ -1,7 +1,7 @@
 <?php
 // HTML page start
 ?>
-<html><head><title>Check Plugin wp-info.org</title>
+<html><head><title>Plugin i18n Readiness wp-info.org</title>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
 <style>
 	p.ind { padding-left: 1.5em; text-indent:-1.5em;}
@@ -11,9 +11,9 @@
 
 <?php
 // Show version and point to information
-echo '<b>Check Plugin v0.2.7</b> - More info and help appreciated on <a href="https://github.com/ePascalC/CheckPluginForTranslation">GitHub</a>,';
+echo '<b>Plugin i18n Readiness v0.3.2</b> - More info and help appreciated on <a href="https://github.com/ePascalC/CheckPluginForTranslation">GitHub</a>,';
 echo ' also check out <a href="http://wp-info.org/pa-qrg/">http://wp-info.org/pa-qrg/</a><br>';
-echo '-----------------------------<br><br>';
+echo '---------------------------------------<br><br>';
 
 // Prepare
 $p = array(); // will hold all the plugin info
@@ -43,7 +43,12 @@ $lines = explode("\n", $text);
 foreach ($lines as $line) {
 	if (stripos($line, '<a href="readme.txt">') !== false) {
 		$p['fn_trunk_readme'] = checkplug_get_text_between('<li><a href="', '"', $line);
+		$p['readme_ext_txt'] = 'y';
 	}
+	if (stripos($line, '<a href="readme.md">') !== false) {
+		$p['readme_ext_md'] = 'y';
+	}
+
 }
 if (!$p['fn_trunk_readme']) {
 	checkplug_show_error( 'Unable to find the readme file in folder ' . $p['svn_base_dir'] . '/trunk/' );
@@ -55,11 +60,25 @@ $retcode = checkplug_get_retcode($p['fp_trunk_readme']);
 if ($retcode != 200) {
 	checkplug_show_error( 'Unable to read file ' . $p['fp_trunk_readme'] . ' (return code is ' . $retcode . ')' );
 }
+
+// If both readme.txt and readme.md exist, the txt wins
+if ( $p['readme_ext_txt'] && $p['readme_ext_md'] ) {
+    checkplug_show_warning( 'You have both a readme.txt and readme.md . Only the <b>.txt</b> is taken into account.' );
+}
+
+
 echo '<b>Readme file</b> is available on ' . $p['fp_trunk_readme'] . '<br>';
 
 // Get the file
 /*
-WordPress.org’s Plugin Directory works based on the information found in the field Stable Tag in the readme. When WordPress.org parses the readme.txt, the very first thing it does is to look at the readme.txt in the /trunk directory, where it reads the “Stable Tag” line. If the Stable Tag is missing, or is set to “trunk”, then the version of the plugin in /trunk is considered to be the stable version. If the Stable Tag is set to anything else, then it will go and look in /tags/ for the referenced version. So a Stable Tag of “1.2.3” will make it look for /tags/1.2.3/.
+WordPress.org’s Plugin Directory works based on the information found in the field Stable Tag in the readme.
+When WordPress.org parses the readme.txt, the very first thing it does is to look at the readme.txt in the /trunk directory,
+where it reads the “Stable Tag” line. If the Stable Tag is missing, or is set to “trunk”,
+then the version of the plugin in /trunk is considered to be the stable version.
+If the Stable Tag is set to anything else, then it will go and look in /tags/ for the referenced version.
+So a Stable Tag of “1.2.3” will make it look for /tags/1.2.3/.
+
+If tag not found, it will default to trunk.
 */
 $text = checkplug_get_file_contents($p['fp_trunk_readme']);
 $nbr_r = substr_count($text, "\r");
@@ -89,10 +108,10 @@ foreach ($lines as $line) {
 
 // Check the tags in the readme.txt trunk
 if ( $p['stable_tag'] == 'trunk' ) {
-	checkplug_show_warning( 'Stable tag is set to trunk, is this what is expected?' );
+	checkplug_show_warning( 'Stable tag is set to trunk, is this what is expected? <form style="display: inline;" action="https://developer.wordpress.org/plugins/wordpress-org/how-your-readme-txt-works/#how-the-readme-is-parsed"><input type="submit" value="More info" /></form>' );
 }
 if ( $p['stable_tag'] == 'notfound' ) {
-	checkplug_show_warning( 'Stable tag not found so defaulting to trunk, better define it!' );
+	checkplug_show_warning( 'Stable tag not found in readme file so defaulting to trunk, better define it! <form style="display: inline;" action="https://developer.wordpress.org/plugins/wordpress-org/how-your-readme-txt-works/#how-the-readme-is-parsed"><input type="submit" value="More info" /></form>' );
 	$p['stable_tag'] = 'trunk';
 }
 
@@ -112,7 +131,7 @@ foreach ($lines as $line) {
 if ($tags) {
 	// sort versions
 	usort($tags, 'version_compare');
-	
+
 	echo '<p class="ind">';
 	echo 'Tag folders found: ';
 	$first = true;
@@ -122,7 +141,12 @@ if ($tags) {
 		} else {
 			$first = false;
 		}
-		echo $tag;
+		// Highlight if tag is the stable tag
+		if ( $tag == $p['stable_tag'] ) {
+			echo '<b>' . $tag . '</b>';
+		} else {
+			echo $tag;
+		}
 	}
 	if ($p['stable_tag'] == 'trunk') {
 		echo ' (but none are used, only trunk)';
@@ -132,20 +156,23 @@ if ($tags) {
 	if ($p['stable_tag'] == 'trunk') {
 		echo 'No folders found under /tag, but trunk is used so that is fine.';
 	} else {
-		checkplug_show_error( 'No folders found under /tags although your Stable Tag is set to ' . $p['stable_tag'] . ' ! So create the <b>' . $p['stable_tag'] . '</b> folder under /tags OR change the Stable Tag to <b>trunk</b>' );
+		checkplug_show_warning( 'No folders found under /tags although your Stable Tag is set to ' . $p['stable_tag'] .
+		    ' ! So create the <b>' . $p['stable_tag'] . '</b> folder under /tags OR change the Stable Tag to <b>trunk</b>. Defaulting now to trunk. ' . 
+		    ' <a href="https://developer.wordpress.org/plugins/wordpress-org/how-your-readme-txt-works/#how-the-readme-is-parsed">More info</a>.' );
+		$p['stable_tag'] = 'trunk';
 	}
 	echo '<br>';
 }
 
-
 // Make sure the needed folder exists
-if ($p['stable_tag'] == 'trunk') {
-	$folder = $p['svn_base_dir'] . '/trunk/';
-} else {
+if ($p['stable_tag'] != 'trunk') {
 	$folder = $p['svn_base_dir'] . '/tags/' . $p['stable_tag'] . '/';
-}
-if (checkplug_get_retcode($folder) != 200) {
-	checkplug_show_error( 'Unable to find or access ' . $folder . ' (return code is ' . $retcode . ')' );
+	if (checkplug_get_retcode($folder) != 200) {
+		checkplug_show_warning( 'Unable to find or access ' . $folder . ' (return code is ' . $retcode . '). Defaulting to trunk. <a href="https://developer.wordpress.org/plugins/wordpress-org/how-your-readme-txt-works/#how-the-readme-is-parsed">More info</a>.' );
+		$p['stable_tag'] = 'trunk';
+	}
+} else {
+    $folder = $p['svn_base_dir'] . '/trunk/';
 }
 
 // Get the files in that folder
@@ -263,23 +290,27 @@ foreach ($php_files as $php_file) {
 
 // Check Text domain
 if ( !isset( $p['text_domain'] ) ) {
-	checkplug_show_error( 'Your plugin slug is <b>' . $p['slug'] . '</b>, but there seems no Text Domain: defined in <b>' . $php_file . '</b>!' );
+	checkplug_show_error( 'Your plugin slug is <b>' . $p['slug'] . '</b>, but there seems no Text Domain: defined in <b>' . $php_file . '</b>! To correctly internationlize your plugin you will need it.' .
+	' <a href="https://developer.wordpress.org/plugins/internationalization/how-to-internationalize-your-plugin/#text-domains">More info</a>.');
 }	
 if ($p['text_domain'] != $p['slug']) {
-	checkplug_show_error( 'Your plugin slug is <b>' . $p['slug'] . '</b>, but your Text Domain is <b>' . $p['text_domain'] .'</b>. Change your Text Domain in <b>' . $php_file . '</b> so it is equal to your slug!' );
+	checkplug_show_error( 'Your plugin slug is <b>' . $p['slug'] . '</b>, but your Text Domain is <b>' . $p['text_domain'] .'</b>. Change your Text Domain in <b>' . $php_file . '</b> so it is equal to your slug!' .
+	' <a href="https://developer.wordpress.org/plugins/internationalization/how-to-internationalize-your-plugin/#text-domains">More info</a>.');
 }
 
 // If trunk, check if version has existing tag
 if ( ( $p['stable_tag'] == 'trunk' ) && ( in_array($p['version'], $tags) ) ) {
-	checkplug_show_warning( 'Trunk is being used, but there is also a folder under tags for version ' . $p['version'] );
+	checkplug_show_warning( 'Trunk is being used, but there is also a folder under tags for version ' . $p['version'] . '<br>');
 }	
 
 // load_plugin_textdomain checks
 if ( version_compare($p['req_at_least'], '4.6', '>=') ) {
-	echo 'Required version (' . $p['req_at_least'] . ') is at least 4.6 so no <b>load_plugin_textdomain</b> is needed.<br>';
+	echo 'Required version (' . $p['req_at_least'] . ') is at least 4.6 so no <b>load_plugin_textdomain</b> is needed.<br>If you have the function somewhere, you can remove it.<br>';
 	echo '<span style="color: green;">(more code needed here to perform this check)</span><br>';
 } else {
-	echo 'Required version (' . $p['req_at_least'] . ') is below 4.6 so a <b>load_plugin_textdomain</b> is needed.<br>';
+	echo 'Required version (' . $p['req_at_least'] . ') is below 4.6 so a <b>load_plugin_textdomain</b> is needed.<br>Please make sure you load it at a certain point in your plugin.' .
+	' <a href="https://developer.wordpress.org/plugins/internationalization/how-to-internationalize-your-plugin/#loading-text-domain">More info</a>.<br>';
+	
 	echo '<span style="color: green;">(more code needed here to perform this check)</span><br>';
 }
 	
@@ -319,9 +350,6 @@ foreach ( $v_arr as $ver ) {
 	echo '</p>';
 }
 	
-// Translation status per locale
-echo '<h3>Translation status (% per locale)</h3>';
-echo '<span style="color: green;">(more code needed here to perform this check)</span><br>';
 
 // Translation editors from https://translate.wordpress.org/projects/wp-plugins/$p['slug']/contributors
 echo '<h3>Translation editors per locale</h3>';
@@ -364,6 +392,42 @@ if ($f) {
 	}
 }
 
+// Translation status per locale
+// Just adding to the global table
+// Only create new locales if > 0%
+$f = checkplug_get_file_contents('https://translate.wordpress.org/api/projects/wp-plugins/' . $p['slug'] . '/stable');
+if ($f) {
+	$a = json_decode($f);
+	foreach ($a->translation_sets as $item) {
+		// add to central array
+		$loc_code = $item->wp_locale;
+		if ( ( !isset($l_arr[$loc_code]) ) && ( $item->percent_translated > 3 ) ) {
+    		$l_arr[$loc_code]['language'] = $loc_code;
+	    	$l_arr[$loc_code]['english_name'] = $item->name;
+		}
+		if ( isset($l_arr[$loc_code]) ) {
+    		$l_arr[$loc_code]['trstat_stable'] = $item->percent_translated;
+	    	$l_arr[$loc_code]['trurl_stable'] = 'https://translate.wordpress.org/projects/wp-plugins/' . $p['slug'] . '/stable/' . $item->locale . '/default' ;
+		}
+	}
+}
+$f = checkplug_get_file_contents('https://translate.wordpress.org/api/projects/wp-plugins/' . $p['slug'] . '/dev');
+if ($f) {
+	$a = json_decode($f);
+	foreach ($a->translation_sets as $item) {
+		// add to central array
+		$loc_code = $item->wp_locale;
+		if ( ( !isset($l_arr[$loc_code]) ) && ( $item->percent_translated > 3 ) ) {
+    		$l_arr[$loc_code]['language'] = $loc_code;
+	    	$l_arr[$loc_code]['english_name'] = $item->name;
+		}
+		if ( isset($l_arr[$loc_code]) ) {
+    		$l_arr[$loc_code]['trstat_dev'] = $item->percent_translated;
+	    	$l_arr[$loc_code]['trurl_dev'] = 'https://translate.wordpress.org/projects/wp-plugins/' . $p['slug'] . '/dev/' . $item->locale . '/default' ;
+		}
+	}
+}
+
 // Latest Revision log
 echo '<h3>Latest Revision log entries</h3>';
 $url = 'https://plugins.trac.wordpress.org/log/' . $p['slug'] . '/?limit=10&mode=stop_on_copy&format=rss';
@@ -388,10 +452,11 @@ checkplug_print_links();
 // Summary table
 echo '<h3>Summary table</h3>';
 echo '<table border="1">';
-echo '<tr><th>Locale</th><th>Name</th><th colspan="2">Language pack</th><th>Editor (PTE)</th></tr>';
+echo '<tr><th>Locale</th><th>Name</th><th colspan="2">Language pack</th><th>Editor (PTE)</th><th>Stable</th><th>Dev</th></tr>';
 ksort($l_arr);
 foreach ( $l_arr as $loc ) {
-	echo '<tr><td>' . $loc['language'] . '</td><td>' . $loc['english_name'] . '</td><td>' . $loc['version'] . '</td><td>' . $loc['updated'] . '</td><td>' . $loc['pte'] . '</td></tr>';
+	echo '<tr><td>' . $loc['language'] . '</td><td>' . $loc['english_name'] . '</td><td>' . $loc['version'] . '</td><td>' . $loc['updated'] . '</td><td>' . $loc['pte'] .
+	    '</td><td><a href="' . $loc['trurl_stable'] . '">' . $loc['trstat_stable'] . '%</a></td><td><a href="' . $loc['trurl_dev'] . '">' . $loc['trstat_dev'] . '%</a></td></tr>';
 }
 echo '</table>';
 
@@ -417,6 +482,8 @@ function checkplug_print_links() {
 
 	echo '<h3>Links</h3>';
 	echo '<table>';
+	$url = 'https://wordpress.org/plugins/' . $p['slug'] . '/';
+	echo sprintf('<tr><td>%s</td><td><a href="%s">%s</td></tr>', 'Plugin page', $url, $url);
 	if ($p['svn_base_dir']) echo sprintf('<tr><td>%s</td><td><a href="%s">%s</td></tr>', 'Base SVN folder', $p['svn_base_dir'], $p['svn_base_dir']);
 	if ($p['fp_trunk_readme']) echo sprintf('<tr><td>%s</td><td><a href="%s">%s</td></tr>', 'Trunk readme', $p['fp_trunk_readme'], $p['fp_trunk_readme']);
 	if ($p['fp_tags_readme']) echo sprintf('<tr><td>%s</td><td><a href="%s">%s</td></tr>', 'Tags readme', $p['fp_tags_readme'], $p['fp_tags_readme']);
@@ -424,6 +491,8 @@ function checkplug_print_links() {
 		echo sprintf('<tr><td>%s</td><td><a href="%s">%s</td></tr>', 'Main php file', $p['fp_main_php'], $p['fp_main_php']);
 		$url = 'https://translate.wordpress.org/projects/wp-plugins/' . $p['slug'] . '/contributors';
 		echo sprintf('<tr><td>%s</td><td><a href="%s">%s</td></tr>', 'Translation Editors', $url, $url);
+		$url = 'https://translate.wordpress.org/projects/wp-plugins/' . $p['slug'];
+		echo sprintf('<tr><td>%s</td><td><a href="%s">%s</td></tr>', 'Locale Translations', $url, $url);
 		$url = 'https://plugins.trac.wordpress.org/log/' . $p['slug'] . '/?limit=10&mode=stop_on_copy&format=rss';
 		echo sprintf('<tr><td>%s</td><td><a href="%s">%s</td></tr>', 'Revision log', $url, $url);
 		$url = 'https://wordpress.slack.com/messages/meta-language-packs/search/in:%23meta-language-packs%20' . $p['slug'] . '/';
