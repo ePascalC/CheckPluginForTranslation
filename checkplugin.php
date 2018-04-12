@@ -1,4 +1,28 @@
 <?php
+
+/**
+ABUSE CHECK
+Throttle client requests to avoid DoS attack
+Found on https://gist.github.com/luckyshot/6077693
+*/
+session_start();
+$usage = array(5,5,5,10,20,30); // seconds to wait after each request
+if (isset($_SESSION['use_last'])) {
+  $nextin = $_SESSION['use_last']+$usage[$_SESSION['use_count']];
+	if (time() < $nextin) {
+		header('HTTP/1.0 503 Service Temporarily Unavailable');
+		header('Status: 503 Service Temporarily Unavailable');
+		header('Retry-After: ' . $nextin-time() );
+		die('Server is bit busy right now!<br>Please wait '.($nextin-time()).' seconds&hellip;' );
+	}else{
+		$_SESSION['use_count']++;
+		if ($_SESSION['use_count'] > sizeof($usage)-1) {$_SESSION['use_count']=sizeof($usage)-1;}
+	}
+}else{
+	$_SESSION['use_count'] = 0;
+}
+$_SESSION['use_last'] = time();
+
 // HTML page start
 ?>
 <html><head><title>Plugin i18n Readiness wp-info.org</title>
@@ -11,7 +35,7 @@
 
 <?php
 // Show version and point to information
-echo '<b>Plugin i18n Readiness v0.3.2</b> - More info and help appreciated on <a href="https://github.com/ePascalC/CheckPluginForTranslation">GitHub</a>,';
+echo '<b>Plugin i18n Readiness v0.3.3</b> - More info and help appreciated on <a href="https://github.com/ePascalC/CheckPluginForTranslation">GitHub</a>,';
 echo ' also check out <a href="http://wp-info.org/pa-qrg/">http://wp-info.org/pa-qrg/</a><br>';
 echo '---------------------------------------<br><br>';
 
@@ -27,6 +51,8 @@ if ( $_GET['slug'] ) {
 	echo '<form method="get">Plugin Slug: <input type="text" name="slug"><input type="submit"></form>';
 	$p['slug'] = 'bbpress';
 	checkplug_show_warning( 'Please enter a plugin slug and hit "Submit". Using ' . $p['slug'] . ' as example.<br>' );
+	echo file_get_contents('./checkplugini18n_cache.html');
+	die();
 }	
 
 // Check base dir	
@@ -158,7 +184,7 @@ if ($tags) {
 	} else {
 		checkplug_show_warning( 'No folders found under /tags although your Stable Tag is set to ' . $p['stable_tag'] .
 		    ' ! So create the <b>' . $p['stable_tag'] . '</b> folder under /tags OR change the Stable Tag to <b>trunk</b>. Defaulting now to trunk. ' . 
-		    ' <a href="https://developer.wordpress.org/plugins/wordpress-org/how-your-readme-txt-works/#how-the-readme-is-parsed">More info</a>.' );
+		    ' <form style="display: inline;" action="https://developer.wordpress.org/plugins/wordpress-org/how-your-readme-txt-works/#how-the-readme-is-parsed"><input type="submit" value="More info" /></form>' );
 		$p['stable_tag'] = 'trunk';
 	}
 	echo '<br>';
@@ -168,7 +194,7 @@ if ($tags) {
 if ($p['stable_tag'] != 'trunk') {
 	$folder = $p['svn_base_dir'] . '/tags/' . $p['stable_tag'] . '/';
 	if (checkplug_get_retcode($folder) != 200) {
-		checkplug_show_warning( 'Unable to find or access ' . $folder . ' (return code is ' . $retcode . '). Defaulting to trunk. <a href="https://developer.wordpress.org/plugins/wordpress-org/how-your-readme-txt-works/#how-the-readme-is-parsed">More info</a>.' );
+		checkplug_show_warning( 'Unable to find or access ' . $folder . ' (return code is ' . $retcode . '). Defaulting to trunk. <form style="display: inline;" action="https://developer.wordpress.org/plugins/wordpress-org/how-your-readme-txt-works/#how-the-readme-is-parsed"><input type="submit" value="More info" /></form>' );
 		$p['stable_tag'] = 'trunk';
 	}
 } else {
@@ -290,12 +316,17 @@ foreach ($php_files as $php_file) {
 
 // Check Text domain
 if ( !isset( $p['text_domain'] ) ) {
-	checkplug_show_error( 'Your plugin slug is <b>' . $p['slug'] . '</b>, but there seems no Text Domain: defined in <b>' . $php_file . '</b>! To correctly internationlize your plugin you will need it.' .
-	' <a href="https://developer.wordpress.org/plugins/internationalization/how-to-internationalize-your-plugin/#text-domains">More info</a>.');
+    if ( version_compare($p['req_at_least'], '4.6', '>=') ) {
+        // No Text domain needs to be defined if WP is 4.6+
+        $p['text_domain'] = $p['slug'];
+    } else {
+	    checkplug_show_error( 'Your plugin slug is <b>' . $p['slug'] . '</b>, but there seems no Text Domain: defined in <b>' . $php_file . '</b>! To correctly internationlize your plugin you will need it.' .
+	    ' <form style="display: inline;" action="https://developer.wordpress.org/plugins/internationalization/how-to-internationalize-your-plugin/#text-domains"><input type="submit" value="More info" /></form>' );
+    }
 }	
 if ($p['text_domain'] != $p['slug']) {
 	checkplug_show_error( 'Your plugin slug is <b>' . $p['slug'] . '</b>, but your Text Domain is <b>' . $p['text_domain'] .'</b>. Change your Text Domain in <b>' . $php_file . '</b> so it is equal to your slug!' .
-	' <a href="https://developer.wordpress.org/plugins/internationalization/how-to-internationalize-your-plugin/#text-domains">More info</a>.');
+	    ' <form style="display: inline;" action="https://developer.wordpress.org/plugins/internationalization/how-to-internationalize-your-plugin/#text-domains"><input type="submit" value="More info" /></form>' );
 }
 
 // If trunk, check if version has existing tag
@@ -309,8 +340,7 @@ if ( version_compare($p['req_at_least'], '4.6', '>=') ) {
 	echo '<span style="color: green;">(more code needed here to perform this check)</span><br>';
 } else {
 	echo 'Required version (' . $p['req_at_least'] . ') is below 4.6 so a <b>load_plugin_textdomain</b> is needed.<br>Please make sure you load it at a certain point in your plugin.' .
-	' <a href="https://developer.wordpress.org/plugins/internationalization/how-to-internationalize-your-plugin/#loading-text-domain">More info</a>.<br>';
-	
+    ' <form style="display: inline;" action="https://developer.wordpress.org/plugins/internationalization/how-to-internationalize-your-plugin/#loading-text-domain"><input type="submit" value="More info" /></form>';
 	echo '<span style="color: green;">(more code needed here to perform this check)</span><br>';
 }
 	
