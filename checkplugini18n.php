@@ -1220,9 +1220,9 @@ function is_valid_version ( $version ) {
 		// Strip off any -alpha, -RC, -beta suffixes, as these complicate comparisons and are rarely used.
 		list( $version, ) = explode( '-', $version );
 		
-		if ( preg_match( '!^\d+\.\d(\.\d+)?$!', $version ) )
+		if ( preg_match( '!^\d+\.\d+(\.\d+)?$!', $version ) )
 			return true;
-		if ( preg_match( '!^\d+\.\d\.\d(\.\d+)?$!', $version ) )
+		if ( preg_match( '!^\d+\.\d+\.\d+(\.\d+)?$!', $version ) )
 			return true;
 	}
 	
