@@ -1,6 +1,6 @@
 <?php
 
-$tool_version = '0.4.6';
+$tool_version = '0.4.7';
 $p = array(); // will hold all the plugin info
 $whitelist = array ('1.2.3.4', '5.6.7.8');
 
@@ -554,9 +554,9 @@ if ( $phpfile_tags['DomainPath'] ) {
 // License
 if ( !$phpfile_tags['License'] ) {
 	$args = array(
-		'type' => 'rec',
+		'type' => 'warn',
 		'spaces' => 2,
-		'text' => 'Setting a <b>License</b> header is strongly recommended, preferably the same one as WordPress itself.',
+		'text' => 'Setting a <b>License</b> header is mandatory for new plugins since April 2020. Consider adding one, preferably the same one as WordPress itself: “GPLv2 or later”.',
 		'action' => 'link',
 		'action_text' => 'https://developer.wordpress.org/plugins/wordpress-org/detailed-plugin-guidelines/#1-plugins-must-be-compatible-with-the-gnu-general-public-license',
     	'cbid' => __LINE__,
@@ -1475,7 +1475,10 @@ function license_is_gpl_compatible($lic) {
 	// https://www.gnu.org/licenses/license-list.html#GPLCompatibleLicenses
 	$lic = strtoupper($lic); // uppercase
 	$lic = str_replace(' ', '', $lic); // remove spaces
-	$lic = str_replace('#', '', $lic);// remove hashtag
+	$lic = str_replace('#', '', $lic); // remove hashtag
+	$lic = str_replace('+', '', $lic); // remove +
+	$lic = str_replace('ORLATER', '', $lic); // remove OR LATER
+	$lic = str_replace('ORLATEST', '', $lic); // remove OR LATEST
 	
 	$arr = array(
 		'GPLV2ORLATER',
@@ -1551,6 +1554,9 @@ function license_is_gpl_incompatible($lic) {
 	$lic = strtoupper($lic); // uppercase
 	$lic = str_replace(' ', '', $lic); // remove spaces
 	$lic = str_replace('#', '', $lic); // remove hashtag
+	$lic = str_replace('+', '', $lic); // remove +
+	$lic = str_replace('ORLATER', '', $lic); // remove OR LATER
+	$lic = str_replace('ORLATEST', '', $lic); // remove OR LATEST
 	
 	$arr = array(
 		'AGPLV1.0',
@@ -1643,10 +1649,13 @@ function license_is_gpl_incompatible($lic) {
 }
 
 function license_is_not_for_software($lic) {
-	// https://www.gnu.org/licenses/license-list.html#GPLCompatibleLicenses
+	// https://www.gnu.org/licenses/license-list.html
 	$lic = strtoupper($lic); // uppercase
 	$lic = str_replace(' ', '', $lic); // remove spaces
 	$lic = str_replace('#', '', $lic); // remove hashtag
+	$lic = str_replace('+', '', $lic); // remove +
+	$lic = str_replace('ORLATER', '', $lic); // remove OR LATER
+	$lic = str_replace('ORLATEST', '', $lic); // remove OR LATEST
 	
 	$arr = array(
 		'FDL',
